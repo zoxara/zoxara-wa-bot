@@ -1,12 +1,19 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, BufferJSON } = require('@whiskeysockets/baileys');
 const pino = require('pino');
-const qrcode = require('qrcode-terminal');
 const express = require('express');
+const readline = require('readline');
 
 const app = express();
 app.use(express.json());
 
 let waSock = null;
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -14,16 +21,20 @@ async function startBot() {
     waSock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false
+        printQRInTerminal: false // QR කෝඩ් එක ඔෆ් කරලා තියෙන්නේ
     });
 
+    // Pairing Code එක ලබා ගැනීම
+    if (!waSock.authState.creds.registered) {
+        const phoneNumber = await question('Please enter your WhatsApp phone number (with country code, e.g., 947xxxxxxxx): ');
+        const code = await waSock.requestPairingCode(phoneNumber.trim());
+        console.log(`\n========================================`);
+        console.log(`YOUR PAIRING CODE IS: ${code}`);
+        console.log(`========================================\n`);
+    }
+
     waSock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-        
-        if (qr) {
-            console.log('Please scan this QR code using your WhatsApp:');
-            qrcode.generate(qr, { small: true });
-        }
+        const { connection, lastDisconnect } = update;
         
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
@@ -32,7 +43,7 @@ async function startBot() {
                 startBot();
             }
         } else if (connection === 'open') {
-            console.log('WhatsApp Bot connected successfully!');
+            console.log('WhatsApp Bot connected successfully using Pairing Code!');
             
             waSock.groupFetchAllParticipating().then((groups) => {
                 console.log('--- Your WhatsApp Groups and JIDs ---');
@@ -82,4 +93,3 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     startBot();
 });
-    
