@@ -19,28 +19,27 @@ async function startBot() {
     waSock.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
         if (qr) {
-            console.log('لطفاً මෙම QR කෝඩ් එක ඔබේ WhatsApp එකෙන් ස්කෑන් කරන්න:');
+            console.log('Please scan this QR code using your WhatsApp:');
             qrcode.generate(qr, { small: true });
         }
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('සම්බන්ධතාව විසඳුණි. නැවත සම්බන්ධ වෙමින් පවතී...', shouldReconnect);
+            console.log('Connection closed. Reconnecting...', shouldReconnect);
             if (shouldReconnect) {
                 startBot();
             }
         } else if (connection === 'open') {
-            console.log('WhatsApp Bot එක සාර්ථකව සම්බන්ධ විය!');
+            console.log('WhatsApp Bot connected successfully!');
             
-            // බොට් කනෙක්ට් වුණු ගමන් ඔයාගේ ගෲප්ස් වල JID ටික මෙතනින් බලාගන්න පුළුවන්
             try {
                 const groups = await waSock.groupFetchAllParticipating();
-                console.log('--- ඔබේ WhatsApp ගෲප්ස් ලැයිස්තුව සහ JID ---');
+                console.log('--- Your WhatsApp Groups and JIDs ---');
                 for (let groupId in groups) {
-                    console.log(`ගෲප් නම: ${groups[groupId].subject} --> JID එක: ${groupId}`);
+                    console.log(`Group Name: ${groups[groupId].subject} --> JID: ${groupId}`);
                 }
-                console.log('---------------------------------------------');
+                console.log('---------------------------------------');
             } catch (error) {
-                console.log('ගෲප්ස් ලබාගැනීමේ දෝෂයක්:', error);
+                console.log('Error fetching groups:', error);
             }
         }
     });
@@ -48,7 +47,7 @@ async function startBot() {
     waSock.ev.on('creds.update', saveCreds);
 }
 
-// වෙබ් අඩවියෙන් ඇණවුම් ලබා ගන්නා API Endpoint එක
+// API endpoint to receive orders from the website
 app.post('/api/send-order', async (req, res) => {
     try {
         const orderData = req.body;
@@ -62,7 +61,6 @@ app.post('/api/send-order', async (req, res) => {
                       `📍 *Address:* ${orderData.customerAddress}%0A` +
                       `📝 *Note:* ${orderData.customerNote || 'None'}`;
 
-        // මෙතැනට ඔයාට බලාගන්න ලැබෙන "Office zoxara" ගෲප් එකේ JID එක දාන්න පුළුවන්
         const TARGET_GROUP_JID = orderData.groupId || "YOUR_GROUP_JID_HERE";
 
         if (waSock) {
@@ -82,4 +80,4 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     startBot();
 });
-        
+                                        
