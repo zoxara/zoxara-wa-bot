@@ -8,7 +8,7 @@ app.use(express.json());
 let waSock = null;
 
 // මෙතන ඔයාගේ WhatsApp නම්බර් එක රටේ කෝඩ් එකත් එක්ක දාන්න (උදා: '94712345678')
-const PHONE_NUMBER = "94756304405"; 
+const PHONE_NUMBER = "+9475 630 4405"; 
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
