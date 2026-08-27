@@ -13,17 +13,20 @@ async function startBot() {
     
     waSock = makeWASocket({
         auth: state,
-        logger: pino({ level: 'silent' })
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false
     });
 
-    waSock.on('connection.update', async (update) => {
+    waSock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
+        
         if (qr) {
             console.log('Please scan this QR code using your WhatsApp:');
             qrcode.generate(qr, { small: true });
         }
+        
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Connection closed. Reconnecting...', shouldReconnect);
             if (shouldReconnect) {
                 startBot();
@@ -31,16 +34,15 @@ async function startBot() {
         } else if (connection === 'open') {
             console.log('WhatsApp Bot connected successfully!');
             
-            try {
-                const groups = await waSock.groupFetchAllParticipating();
+            waSock.groupFetchAllParticipating().then((groups) => {
                 console.log('--- Your WhatsApp Groups and JIDs ---');
                 for (let groupId in groups) {
                     console.log(`Group Name: ${groups[groupId].subject} --> JID: ${groupId}`);
                 }
                 console.log('---------------------------------------');
-            } catch (error) {
+            }).catch((error) => {
                 console.log('Error fetching groups:', error);
-            }
+            });
         }
     });
 
@@ -80,4 +82,4 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     startBot();
 });
-        
+    
