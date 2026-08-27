@@ -1,19 +1,14 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, BufferJSON } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const express = require('express');
-const readline = require('readline');
 
 const app = express();
 app.use(express.json());
 
 let waSock = null;
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+// මෙතන ඔයාගේ WhatsApp නම්බර් එක රටේ කෝඩ් එකත් එක්ක දාන්න (උදා: '94712345678')
+const PHONE_NUMBER = "947XXXXXXXX"; 
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -21,16 +16,27 @@ async function startBot() {
     waSock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false // QR කෝඩ් එක ඔෆ් කරලා තියෙන්නේ
+        printQRInTerminal: false
     });
 
-    // Pairing Code එක ලබා ගැනීම
     if (!waSock.authState.creds.registered) {
-        const phoneNumber = await question('Please enter your WhatsApp phone number (with country code, e.g., 947xxxxxxxx): ');
-        const code = await waSock.requestPairingCode(phoneNumber.trim());
-        console.log(`\n========================================`);
-        console.log(`YOUR PAIRING CODE IS: ${code}`);
-        console.log(`========================================\n`);
+        if (!PHONE_NUMBER || PHONE_NUMBER.includes("XXX")) {
+            console.log("Please set your PHONE_NUMBER in the code!");
+            return;
+        }
+        
+        // ටිකක් වෙලා ඉඳලා Pairing Code එක රিকোয়েസ്റ്റ് කිරීම
+        setTimeout(async () => {
+            try {
+                let code = await waSock.requestPairingCode(PHONE_NUMBER);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log(`\n========================================`);
+                console.log(`YOUR PAIRING CODE IS: ${code}`);
+                console.log(`========================================\n`);
+            } catch (error) {
+                console.error("Error requesting pairing code:", error);
+            }
+        }, 3000);
     }
 
     waSock.ev.on('connection.update', (update) => {
@@ -93,3 +99,4 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     startBot();
 });
+                    
