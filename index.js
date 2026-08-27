@@ -7,7 +7,6 @@ const app = express();
 app.use(express.json());
 
 let waSock = null;
-const TARGET_GROUP_JID = "YOUR_WHATSAPP_GROUP_JID_HERE"; // මෙතැනට ඔයාගේ WhatsApp Group එකේ JID එක දාන්න
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -17,7 +16,7 @@ async function startBot() {
         logger: pino({ level: 'silent' })
     });
 
-    waSock.on('connection.update', (update) => {
+    waSock.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
         if (qr) {
             console.log('لطفاً මෙම QR කෝඩ් එක ඔබේ WhatsApp එකෙන් ස්කෑන් කරන්න:');
@@ -31,6 +30,18 @@ async function startBot() {
             }
         } else if (connection === 'open') {
             console.log('WhatsApp Bot එක සාර්ථකව සම්බන්ධ විය!');
+            
+            // බොට් කනෙක්ට් වුණු ගමන් ඔයාගේ ගෲප්ස් වල JID ටික මෙතනින් බලාගන්න පුළුවන්
+            try {
+                const groups = await waSock.groupFetchAllParticipating();
+                console.log('--- ඔබේ WhatsApp ගෲප්ස් ලැයිස්තුව සහ JID ---');
+                for (let groupId in groups) {
+                    console.log(`ගෲප් නම: ${groups[groupId].subject} --> JID එක: ${groupId}`);
+                }
+                console.log('---------------------------------------------');
+            } catch (error) {
+                console.log('ගෲප්ස් ලබාගැනීමේ දෝෂයක්:', error);
+            }
         }
     });
 
@@ -51,6 +62,9 @@ app.post('/api/send-order', async (req, res) => {
                       `📍 *Address:* ${orderData.customerAddress}%0A` +
                       `📝 *Note:* ${orderData.customerNote || 'None'}`;
 
+        // මෙතැනට ඔයාට බලාගන්න ලැබෙන "Office zoxara" ගෲප් එකේ JID එක දාන්න පුළුවන්
+        const TARGET_GROUP_JID = orderData.groupId || "YOUR_GROUP_JID_HERE";
+
         if (waSock) {
             await waSock.sendMessage(TARGET_GROUP_JID, { text: decodeURIComponent(message) });
             return res.status(200).json({ success: true, message: "Order sent to WhatsApp group!" });
@@ -68,4 +82,4 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     startBot();
 });
-
+        
